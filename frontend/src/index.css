@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+/* Пастельный фон с мягкими цветовыми пятнами (как в макете) */
+.pastel-bg {
+  background:
+    radial-gradient(ellipse 60% 50% at 85% 10%, rgba(244, 114, 182, 0.14), transparent),
+    radial-gradient(ellipse 55% 60% at 5% 85%, rgba(147, 197, 253, 0.18), transparent),
+    radial-gradient(ellipse 40% 40% at 15% 15%, rgba(216, 180, 254, 0.12), transparent),
+    #f8f7fc;
+}
+
+.text-gradient {
+  background: linear-gradient(90deg, #ec4899, #a855f7, #60a5fa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Хэндлы нод: прозрачные по умолчанию, подсвечиваются при наведении на ноду,
+   сторона прилипания подсвечивается при наведении на сам хэндл */
+.custom-handle {
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 9999px;
+  background: #94a3b8 !important;
+  border: 2px solid #fff !important;
+  opacity: 0;
+  transition: opacity 0.15s, transform 0.15s, background 0.15s;
+}
+
+.react-flow__node:hover .custom-handle,
+.react-flow__node.selected .custom-handle {
+  opacity: 0.6;
+}
+
+.custom-handle:hover,
+.custom-handle.connectingto {
+  opacity: 1 !important;
+  background: #ec4899 !important;
+  transform: scale(1.4);
+}
+
+.react-flow__handle-connecting {
+  background: #f59e0b !important;
+  opacity: 1 !important;
+}
+
+.react-flow__handle-valid {
+  background: #22c55e !important;
+  opacity: 1 !important;
+}
+
+.react-flow {
+  --xy-background-color: transparent;
+}

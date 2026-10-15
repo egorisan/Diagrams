@@ -1,0 +1,43 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: diagrams_backend
+    env_file:
+      - ./backend/.env
+    # Порт наружу не публикуем: API доступен только через nginx (frontend).
+    # Если нужен прямой доступ для отладки — раскомментируйте:
+    # ports:
+    #   - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: diagrams_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # Локальный Postgres (опционально).
+  # Сейчас backend использует удалённую БД из backend/.env (DATABASE_URL).
+  # Чтобы перейти на контейнерную БД:
+  #   1. Раскомментируйте сервис ниже и volume db_data.
+  #   2. В backend/.env замените DATABASE_URL на
+  #      postgresql+asyncpg://diagrams_user:diagrams_pass@db:5432/diagrams_db
+  # db:
+  #   image: postgres:16-alpine
+  #   container_name: diagrams_db
+  #   environment:
+  #     POSTGRES_USER: diagrams_user
+  #     POSTGRES_PASSWORD: diagrams_pass
+  #     POSTGRES_DB: diagrams_db
+  #   volumes:
+  #     - db_data:/var/lib/postgresql/data
+  #   restart: unless-stopped
+
+# volumes:
+#   db_data:

@@ -5,8 +5,7 @@ services:
     container_name: diagrams_backend
     env_file:
       - ./backend/.env
-    # Порт наружу не публикуем: API доступен только через nginx (frontend).
-    # Если нужен прямой доступ для отладки — раскомментируйте:
+    # API доступен только через nginx (frontend).
     # ports:
     #   - "8000:8000"
     restart: unless-stopped
@@ -22,7 +21,6 @@ services:
       - backend
     restart: unless-stopped
 
-  # Локальный Postgres (опционально).
   # Сейчас backend использует удалённую БД из backend/.env (DATABASE_URL).
   # Чтобы перейти на контейнерную БД:
   #   1. Раскомментируйте сервис ниже и volume db_data.

@@ -8,7 +8,7 @@ import uuid
 from app.database import get_db
 from app.models import Project, Diagram, ExportLog, User
 from app.schemas import (
-    ProjectCreate, DiagramCreate, DiagramSave,
+    ProjectCreate, ProjectRename, DiagramRename, DiagramCreate, DiagramSave,
     ProjectResponse, DiagramResponse,
 )
 from app.routers.auth import get_current_user
@@ -70,23 +70,39 @@ async def list_projects(db: AsyncSession = Depends(get_db), user: User = Depends
     return result.scalars().all()
 
 
+DIAGRAM_TOTAL_LIMIT = 20   # максимум диаграмм на пользователя
+DIAGRAM_ELEMENT_LIMIT = 80  # максимум элементов на одной диаграмме
+
+
+async def _count_user_diagrams(user: User, db: AsyncSession) -> int:
+    result = await db.execute(
+        select(func.count(Diagram.id))
+        .join(Project, Diagram.project_id == Project.id)
+        .where(Project.user_id == user.id)
+    )
+    return result.scalar() or 0
+
+
 @router.post("/projects", response_model=ProjectResponse, status_code=201)
 async def create_project(data: ProjectCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    if not user.is_pro:
-        result = await db.execute(select(func.count(Project.id)).where(Project.user_id == user.id))
-        if (result.scalar() or 0) >= 1:
-            if not data.replace:
-                raise HTTPException(status_code=403, detail="PROJECT_LIMIT")
-            # Hard delete старого проекта (каскадно удалит диаграмму)
-            old = await db.execute(select(Project).where(Project.user_id == user.id))
-            for p in old.scalars().all():
-                await db.delete(p)
-            await db.flush()
-
     project = Project(user_id=user.id, name=data.name)
     db.add(project)
     await db.commit()
 
+    result = await db.execute(
+        select(Project).options(selectinload(Project.diagrams)).where(Project.id == project.id)
+    )
+    return result.scalars().first()
+
+
+@router.patch("/projects/{project_id}", response_model=ProjectResponse)
+async def rename_project(project_id: uuid.UUID, data: ProjectRename, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    project = await _get_owned_project(project_id, user, db)
+    name = data.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Пустое название")
+    project.name = name
+    await db.commit()
     result = await db.execute(
         select(Project).options(selectinload(Project.diagrams)).where(Project.id == project.id)
     )
@@ -105,8 +121,8 @@ async def delete_project(project_id: uuid.UUID, db: AsyncSession = Depends(get_d
 async def create_diagram(project_id: uuid.UUID, data: DiagramCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     project = await _get_owned_project(project_id, user, db)
 
-    if not user.is_pro and len(project.diagrams) >= 1:
-        raise HTTPException(status_code=403, detail="DIAGRAM_LIMIT")
+    if await _count_user_diagrams(user, db) >= DIAGRAM_TOTAL_LIMIT:
+        raise HTTPException(status_code=403, detail="DIAGRAM_TOTAL_LIMIT")
 
     diagram = Diagram(project_id=project.id, name=data.name, type=data.type, content=data.content or {"nodes": [], "edges": []})
     db.add(diagram)
@@ -120,10 +136,26 @@ async def get_diagram(diagram_id: uuid.UUID, db: AsyncSession = Depends(get_db),
     return await _get_owned_diagram(diagram_id, user, db)
 
 
+@router.patch("/diagrams/{diagram_id}", response_model=DiagramResponse)
+async def rename_diagram(diagram_id: uuid.UUID, data: DiagramRename, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    diagram = await _get_owned_diagram(diagram_id, user, db)
+    name = data.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Пустое название")
+    diagram.name = name
+    await db.commit()
+    await db.refresh(diagram)
+    return diagram
+
+
 @router.put("/diagrams/{diagram_id}")
 async def save_diagram(diagram_id: uuid.UUID, data: DiagramSave, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     diagram = await _get_owned_diagram(diagram_id, user, db)
     await _check_daily_limit(user, db)
+
+    nodes = data.content.get("nodes") or []
+    if len(nodes) > DIAGRAM_ELEMENT_LIMIT:
+        raise HTTPException(status_code=400, detail="ELEMENT_LIMIT")
 
     diagram.content = data.content
     if not user.is_pro:

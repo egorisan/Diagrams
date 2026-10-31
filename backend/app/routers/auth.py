@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from jose import JWTError
 
 from app.database import get_db
@@ -54,7 +54,14 @@ async def register(user_data: UserCreate, response: Response, db: AsyncSession =
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="Этот Email уже зарегистрирован")
 
-    new_user = User(email=user_data.email, password_hash=get_password_hash(user_data.password))
+    # Первый зарегистрированный пользователь становится администратором
+    total = (await db.execute(select(func.count(User.id)))).scalar() or 0
+    new_user = User(
+        email=user_data.email,
+        password_hash=get_password_hash(user_data.password),
+        role="admin" if total == 0 else "user",
+        is_pro=True,  # платежи отключены — всем полный доступ
+    )
     db.add(new_user)
     await db.commit()
     await db.refresh(new_user)

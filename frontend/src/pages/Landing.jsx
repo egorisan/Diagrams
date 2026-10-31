@@ -60,7 +60,7 @@ function Nav({ user }) {
       <nav className="hidden md:flex items-center gap-8 text-sm text-slate-500">
         <a href="#features" className="hover:text-slate-800">Возможности</a>
         <a href="#examples" className="hover:text-slate-800">Примеры</a>
-        <a href="#pricing" className="hover:text-slate-800">Тарифы</a>
+
         <a href="#about" className="hover:text-slate-800">О нас</a>
       </nav>
       {user ? (
@@ -109,9 +109,6 @@ export default function Landing() {
               >
                 {user ? 'К моим проектам →' : 'Начать бесплатно →'}
               </Link>
-              <Link to="/login" className="px-6 py-3 bg-white text-slate-700 rounded-xl border border-slate-200 hover:border-slate-300 font-medium">
-                ▶ Посмотреть видео
-              </Link>
             </div>
           </div>
           <EditorMock />
@@ -147,41 +144,6 @@ export default function Landing() {
                 <p className="px-4 py-3 text-sm font-medium text-slate-700">{t.name}</p>
               </div>
             ))}
-          </div>
-        </section>
-
-        <section id="pricing" className="py-14 scroll-mt-6">
-          <h2 className="text-3xl font-bold text-center text-slate-800 mb-10">Тарифы</h2>
-          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-            <div className="bg-white rounded-2xl border border-slate-100 p-7 shadow-sm">
-              <h3 className="font-bold text-slate-800 text-lg">Free</h3>
-              <p className="text-3xl font-extrabold text-slate-800 my-3">0 ₽</p>
-              <ul className="space-y-2 text-sm text-slate-500 mb-6">
-                <li>✓ 1 проект, 1 диаграмма</li>
-                <li>✓ 2 сохранения/экспорта в день</li>
-                <li>✓ Все типы диаграмм</li>
-                <li className="text-slate-300">✕ Водяной знак на экспорте</li>
-              </ul>
-              <Link to="/register" className="block text-center py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 font-medium text-sm">
-                Начать бесплатно
-              </Link>
-            </div>
-            <div className="bg-white rounded-2xl border-2 border-pink-300 p-7 shadow-lg shadow-pink-100">
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold text-slate-800 text-lg">⭐ Pro</h3>
-                <span className="text-[10px] font-bold text-pink-600 bg-pink-100 px-2 py-1 rounded-full">РАЗОВАЯ ОПЛАТА</span>
-              </div>
-              <p className="text-3xl font-extrabold text-slate-800 my-3">99 ₽</p>
-              <ul className="space-y-2 text-sm text-slate-500 mb-6">
-                <li>✓ Безлимитные проекты и диаграммы</li>
-                <li>✓ Безлимитные сохранения и экспорты</li>
-                <li>✓ Без водяного знака</li>
-                <li>✓ Все типы диаграмм</li>
-              </ul>
-              <Link to="/register" className="block text-center py-2.5 bg-pink-500 text-white rounded-xl hover:bg-pink-600 font-semibold text-sm shadow-md shadow-pink-200">
-                Купить Pro
-              </Link>
-            </div>
           </div>
         </section>
 

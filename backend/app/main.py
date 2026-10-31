@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.database import init_db
-from app.routers import auth, diagrams, payments, admin
+from app.routers import auth, diagrams, admin
 
 
 @asynccontextmanager
@@ -24,7 +24,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(diagrams.router)
-app.include_router(payments.router)
+
 app.include_router(admin.router)
 
 

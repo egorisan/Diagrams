@@ -20,7 +20,6 @@ import '@xyflow/react/dist/style.css';
 import { api } from '../api';
 import { useAuth } from '../store/auth';
 import Logo from '../components/Logo';
-import Paywall from '../components/Paywall';
 import ExportModal from '../components/ExportModal';
 import CustomNode from '../editor/CustomNode';
 import StylePanel from '../editor/StylePanel';
@@ -44,6 +43,7 @@ function sanitizeNodes(nodes) {
       stroke: data.stroke,
       textColor: data.textColor,
       fontSize: data.fontSize,
+      rotation: data.rotation || 0,
     },
   }));
 }
@@ -195,12 +195,12 @@ function EditorInner() {
   const [activeShape, setActiveShape] = useState('rect');
   const [edgeStyle, setEdgeStyle] = useState('directed');
   const [selected, setSelected] = useState(null);
-  const [paywall, setPaywall] = useState(false);
-  const [paywallReason, setPaywallReason] = useState('');
+  const MAX_ELEMENTS = 80;
   const [exportOpen, setExportOpen] = useState(false);
   const [hint, setHint] = useState('');
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const [showMap, setShowMap] = useState(true);
 
   const history = useRef({ past: [], future: [] });
   const nodesRef = useRef(nodes);
@@ -289,6 +289,10 @@ function EditorInner() {
   );
 
   const addNodeAt = useCallback((shape, position) => {
+    if (nodesRef.current.length >= MAX_ELEMENTS) {
+      showHint(`Максимум ${MAX_ELEMENTS} элементов на диаграмме`);
+      return;
+    }
     takeSnapshot();
     const pos = position || { x: 200 + Math.random() * 100, y: 150 + Math.random() * 80 };
     setNodes((ns) => [
@@ -304,6 +308,7 @@ function EditorInner() {
           stroke: '#1e293b',
           textColor: '#1e293b',
           fontSize: 14,
+          rotation: 0,
         },
       },
     ]);
@@ -371,8 +376,12 @@ function EditorInner() {
   }, []);
 
   const applyTemplate = (t) => {
-    takeSnapshot();
     const built = t.build();
+    if (built.nodes.length > MAX_ELEMENTS) {
+      showHint(`Шаблон не помещается: максимум ${MAX_ELEMENTS} элементов`);
+      return;
+    }
+    takeSnapshot();
     setNodes(built.nodes);
     setEdges(built.edges);
     if (built.viewport) setViewport(built.viewport);
@@ -394,16 +403,6 @@ function EditorInner() {
     setSelected(sel[0] || null);
   }, []);
 
-  const handleLimitError = (err) => {
-    const detail = err.response?.data?.detail;
-    if (detail === 'LIMIT_REACHED' || err.response?.status === 403) {
-      setPaywallReason('На тарифе Free доступно 2 сохранения/экспорта в день.');
-      setPaywall(true);
-      return true;
-    }
-    return false;
-  };
-
   const save = async () => {
     if (!diagram) return;
     setSaving(true);
@@ -417,7 +416,8 @@ function EditorInner() {
       });
       showHint('Сохранено');
     } catch (err) {
-      if (!handleLimitError(err)) showHint(err.response?.data?.detail || 'Ошибка сохранения');
+      const detail = err.response?.data?.detail;
+      showHint(detail === 'ELEMENT_LIMIT' ? `Максимум ${MAX_ELEMENTS} элементов на диаграмме` : (detail || 'Ошибка сохранения'));
     } finally {
       setSaving(false);
     }
@@ -427,14 +427,12 @@ function EditorInner() {
     setExportOpen(false);
     // Сохранить в облако
     await save();
-    // Учет экспорта + лимит
+    // Учет экспорта (генерация файла — на клиенте)
     try {
       await api.post(`/diagrams/${id}/export`);
-    } catch (err) {
-      if (handleLimitError(err)) return;
-    }
+    } catch { /* учет не критичен */ }
     try {
-      await exportDiagram(format, nodesRef.current, edgesRef.current, !!user?.is_pro, fileName);
+      await exportDiagram(format, nodesRef.current, edgesRef.current, true, fileName);
     } catch (err) {
       showHint('Ошибка экспорта: ' + err.message);
     }
@@ -471,6 +469,11 @@ function EditorInner() {
           <button onClick={() => zoomOut()} className="w-8 h-8 rounded-lg hover:bg-slate-100">−</button>
           <ZoomLabel />
           <button onClick={() => zoomIn()} className="w-8 h-8 rounded-lg hover:bg-slate-100">＋</button>
+          <button
+            onClick={() => setShowMap(!showMap)}
+            title={showMap ? 'Скрыть мини-карту' : 'Показать мини-карту'}
+            className={`w-8 h-8 rounded-lg hover:bg-slate-100 ${showMap ? 'text-pink-500' : 'text-slate-400'}`}
+          >▣</button>
         </div>
 
         <button
@@ -521,7 +524,7 @@ function EditorInner() {
             <EdgeMarkerDefs />
             <Background variant={BackgroundVariant.Dots} gap={18} size={1.2} color="#cbd5e1" />
             <Controls position="bottom-left" />
-            <MiniMap pannable zoomable position="bottom-right" className="!bg-white/90 !rounded-xl !shadow" />
+            {showMap && <MiniMap pannable zoomable position="bottom-right" className="!bg-white/90 !rounded-xl !shadow" />}
           </ReactFlow>
 
           {nodes.length === 0 && (
@@ -552,7 +555,6 @@ function EditorInner() {
         onSave={doExport}
         busy={saving}
       />
-      <Paywall open={paywall} onClose={() => setPaywall(false)} reason={paywallReason} />
     </div>
   );
 }

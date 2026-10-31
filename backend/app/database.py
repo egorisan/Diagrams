@@ -25,6 +25,8 @@ MIGRATIONS = [
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ",
     "ALTER TABLE diagrams ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN DEFAULT FALSE",
+    # Платежи отключены: всем пользователям полный доступ Pro
+    "UPDATE users SET is_pro = TRUE",
 ]
 
 async def init_db():

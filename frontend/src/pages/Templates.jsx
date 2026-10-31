@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import SideNav from '../components/SideNav';
 import DiagramPreview from '../components/DiagramPreview';
-import Paywall from '../components/Paywall';
 import { TEMPLATES } from '../editor/templates';
 
 const TYPE_NAMES = {
@@ -13,14 +12,12 @@ const TYPE_NAMES = {
 
 export default function Templates() {
   const [busy, setBusy] = useState('');
-  const [paywall, setPaywall] = useState(false);
-  const [replaceTpl, setReplaceTpl] = useState(null);
   const navigate = useNavigate();
 
-  const useTemplate = async (t, replace = false) => {
+  const useTemplate = async (t) => {
     setBusy(t.name);
     try {
-      const { data: project } = await api.post('/projects', { name: t.name, replace });
+      const { data: project } = await api.post('/projects', { name: t.name });
       const content = t.build();
       const { data: diagram } = await api.post(`/projects/${project.id}/diagrams`, {
         name: t.name,
@@ -30,13 +27,11 @@ export default function Templates() {
       navigate(`/editor/${diagram.id}`);
     } catch (err) {
       const detail = err.response?.data?.detail;
-      if (detail === 'PROJECT_LIMIT') {
-        setReplaceTpl(t);
-      } else if (detail === 'DIAGRAM_LIMIT' || detail === 'LIMIT_REACHED') {
-        setPaywall(true);
-      } else {
-        alert(detail || 'Ошибка создания');
-      }
+      alert(
+        detail === 'DIAGRAM_TOTAL_LIMIT'
+          ? 'Достигнут лимит: не более 20 диаграмм. Удалите проект, чтобы создать новый.'
+          : detail || 'Ошибка создания'
+      );
     } finally {
       setBusy('');
     }
@@ -67,34 +62,6 @@ export default function Templates() {
           ))}
         </div>
       </div>
-
-      {replaceTpl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-8 max-w-md mx-4 shadow-2xl">
-            <h3 className="text-lg font-bold text-slate-800 mb-2">Заменить проект?</h3>
-            <p className="text-sm text-slate-500 mb-6">
-              На тарифе Free доступен только 1 проект. Текущий проект будет безвозвратно удалён
-              и заменён шаблоном «{replaceTpl.name}».
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => { const t = replaceTpl; setReplaceTpl(null); useTemplate(t, true); }}
-                className="flex-1 py-2.5 bg-red-500 text-white rounded-xl hover:bg-red-600 font-medium text-sm"
-              >
-                Удалить и создать
-              </button>
-              <button
-                onClick={() => setReplaceTpl(null)}
-                className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 text-sm"
-              >
-                Отмена
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <Paywall open={paywall} onClose={() => setPaywall(false)} />
     </SideNav>
   );
 }

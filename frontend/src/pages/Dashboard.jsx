@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../store/auth';
-import Paywall from '../components/Paywall';
 import SideNav from '../components/SideNav';
 import DiagramPreview from '../components/DiagramPreview';
 
@@ -21,8 +20,11 @@ const SORTS = {
   created: (a, b) => new Date(b.created_at) - new Date(a.created_at),
 };
 
-function CardMenu({ onOpen, onDelete }) {
+function CardMenu({ onOpen, onRename, onDelete }) {
   const [open, setOpen] = useState(false);
+  const item = (label, fn, cls = 'text-slate-600 hover:bg-pink-50') => (
+    <button onClick={() => { setOpen(false); fn(); }} className={`block w-full text-left px-4 py-2 text-sm ${cls}`}>{label}</button>
+  );
   return (
     <div className="relative">
       <button
@@ -32,9 +34,10 @@ function CardMenu({ onOpen, onDelete }) {
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-8 z-20 w-36 bg-white border border-slate-200 rounded-xl shadow-lg py-1 overflow-hidden">
-            <button onClick={onOpen} className="block w-full text-left px-4 py-2 text-sm text-slate-600 hover:bg-pink-50">Открыть</button>
-            <button onClick={onDelete} className="block w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50">Удалить</button>
+          <div className="absolute right-0 top-8 z-20 w-44 bg-white border border-slate-200 rounded-xl shadow-lg py-1 overflow-hidden">
+            {item('Открыть', onOpen)}
+            {item('Переименовать', onRename)}
+            {item('Удалить', onDelete, 'text-red-500 hover:bg-red-50')}
           </div>
         </>
       )}
@@ -44,6 +47,7 @@ function CardMenu({ onOpen, onDelete }) {
 
 export default function Dashboard() {
   const { refreshUser } = useAuth();
+  const MAX_DIAGRAMS = 20;
   const [projects, setProjects] = useState([]);
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('all');
@@ -53,8 +57,8 @@ export default function Dashboard() {
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState('class');
   const [error, setError] = useState('');
-  const [paywall, setPaywall] = useState(false);
-  const [confirmReplace, setConfirmReplace] = useState(false);
+  const [renameTarget, setRenameTarget] = useState(null); // {id, name}
+  const [renameValue, setRenameValue] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -65,11 +69,12 @@ export default function Dashboard() {
 
   useEffect(() => {
     load();
-    refreshUser(); // подтянуть is_pro после возврата с оплаты
-    if (location.state?.paywall) setPaywall(true);
+    refreshUser();
     if (location.state?.create) setCreateOpen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const totalDiagrams = projects.reduce((s, p) => s + p.diagrams.length, 0);
 
   // Плоская структура: каждая диаграмма = карточка
   const items = useMemo(() => {
@@ -94,10 +99,8 @@ export default function Dashboard() {
       navigate(`/editor/${diagram.id}`);
     } catch (err) {
       const detail = err.response?.data?.detail;
-      if (detail === 'PROJECT_LIMIT') {
-        setConfirmReplace(true);
-      } else if (detail === 'DIAGRAM_LIMIT' || detail === 'LIMIT_REACHED') {
-        setPaywall(true);
+      if (detail === 'DIAGRAM_TOTAL_LIMIT') {
+        setError('Достигнут лимит: не более 20 диаграмм. Удалите проект, чтобы создать новый.');
       } else {
         setError(detail || 'Ошибка создания');
       }
@@ -107,6 +110,23 @@ export default function Dashboard() {
   const deleteProject = async (id) => {
     await api.delete(`/projects/${id}`);
     load();
+  };
+
+  const openRename = (d) => {
+    setRenameTarget(d); // диаграмма — именно её имя видно на карточке
+    setRenameValue(d.name);
+  };
+
+  const submitRename = async () => {
+    const name = renameValue.trim();
+    if (!name || !renameTarget) return;
+    try {
+      await api.patch(`/diagrams/${renameTarget.id}`, { name });
+      setRenameTarget(null);
+      load();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Не удалось переименовать');
+    }
   };
 
   const toggleFav = async (id) => {
@@ -136,12 +156,21 @@ export default function Dashboard() {
       <div className="max-w-6xl mx-auto px-8 pb-12">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-slate-800">Мои проекты</h1>
-          <button
-            onClick={() => setCreateOpen(true)}
-            className="px-5 py-2.5 bg-pink-500 text-white rounded-xl hover:bg-pink-600 font-semibold text-sm shadow-md shadow-pink-200"
-          >
-            ＋ Создать диаграмму
-          </button>
+          <div className="flex items-center gap-3">
+            {totalDiagrams >= MAX_DIAGRAMS && (
+              <span className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-xl">
+                Лимит 20 диаграмм — удалите проект, чтобы создать новый
+              </span>
+            )}
+            <button
+              onClick={() => setCreateOpen(true)}
+              disabled={totalDiagrams >= MAX_DIAGRAMS}
+              title={totalDiagrams >= MAX_DIAGRAMS ? 'Удалите проект, чтобы создать новый' : ''}
+              className="px-5 py-2.5 bg-pink-500 text-white rounded-xl hover:bg-pink-600 font-semibold text-sm shadow-md shadow-pink-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ＋ Создать диаграмму
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 mb-6">
@@ -202,7 +231,7 @@ export default function Dashboard() {
                   </div>
                 </Link>
                 <button onClick={() => toggleFav(d.id)} className={`text-lg ${d.is_favorite ? 'text-pink-500' : 'text-slate-300 hover:text-pink-400'}`}>★</button>
-                <CardMenu onOpen={() => navigate(`/editor/${d.id}`)} onDelete={() => deleteProject(d.project.id)} />
+                <CardMenu onOpen={() => navigate(`/editor/${d.id}`)} onRename={() => openRename(d)} onDelete={() => deleteProject(d.project.id)} />
               </div>
             ))}
           </div>
@@ -225,7 +254,7 @@ export default function Dashboard() {
                     className={`text-lg transition ${d.is_favorite ? 'text-pink-500' : 'text-slate-200 hover:text-pink-400'}`}
                     title="В избранное"
                   >★</button>
-                  <CardMenu onOpen={() => navigate(`/editor/${d.id}`)} onDelete={() => deleteProject(d.project.id)} />
+                  <CardMenu onOpen={() => navigate(`/editor/${d.id}`)} onRename={() => openRename(d)} onDelete={() => deleteProject(d.project.id)} />
                 </div>
               </div>
             ))}
@@ -266,33 +295,25 @@ export default function Dashboard() {
         </div>
       )}
 
-      {confirmReplace && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-8 max-w-md mx-4 shadow-2xl">
-            <h3 className="text-lg font-bold text-slate-800 mb-2">Заменить проект?</h3>
-            <p className="text-sm text-slate-500 mb-6">
-              На тарифе Free доступен только 1 проект. Текущий проект и его диаграмма будут
-              безвозвратно удалены.
-            </p>
+      {renameTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setRenameTarget(null)}>
+          <div className="bg-white rounded-2xl p-7 max-w-sm w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-slate-800 mb-4">Переименовать диаграмму</h3>
+            <input
+              autoFocus
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && submitRename()}
+              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:ring-2 focus:ring-pink-400 mb-5"
+            />
             <div className="flex gap-3">
-              <button
-                onClick={() => { setConfirmReplace(false); createProject(true); }}
-                className="flex-1 py-2.5 bg-red-500 text-white rounded-xl hover:bg-red-600 font-medium text-sm"
-              >
-                Удалить и создать
-              </button>
-              <button
-                onClick={() => setConfirmReplace(false)}
-                className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 text-sm"
-              >
-                Отмена
-              </button>
+              <button onClick={() => setRenameTarget(null)} className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 text-sm">Отмена</button>
+              <button onClick={submitRename} className="flex-1 py-2.5 bg-pink-500 text-white rounded-xl hover:bg-pink-600 font-semibold text-sm shadow-md shadow-pink-200">Сохранить</button>
             </div>
           </div>
         </div>
       )}
 
-      <Paywall open={paywall} onClose={() => setPaywall(false)} />
     </SideNav>
   );
 }

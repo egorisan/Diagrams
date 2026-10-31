@@ -10,7 +10,7 @@ const TYPE_NAMES = {
   usecase: 'Прецеденты', er: 'ER-диаграммы', component: 'Компоненты',
 };
 
-function UsersView({ users, meId, onBan, onPro, onDelete }) {
+function UsersView({ users, meId, onBan, onDelete, onResetPw }) {
   const [q, setQ] = useState('');
   const filtered = useMemo(
     () => users.filter((u) => u.email.toLowerCase().includes(q.toLowerCase())),
@@ -38,7 +38,6 @@ function UsersView({ users, meId, onBan, onPro, onDelete }) {
             <tr>
               <th className="px-5 py-3.5">Пользователь</th>
               <th className="px-5 py-3.5">Роль</th>
-              <th className="px-5 py-3.5">Тариф</th>
               <th className="px-5 py-3.5">Статус</th>
               <th className="px-5 py-3.5">Активность</th>
               <th className="px-5 py-3.5">Регистрация</th>
@@ -62,13 +61,6 @@ function UsersView({ users, meId, onBan, onPro, onDelete }) {
                   </span>
                 </td>
                 <td className="px-5 py-3">
-                  {u.is_pro ? (
-                    <span className="px-2.5 py-1 text-xs font-bold bg-amber-100 text-amber-700 rounded-full">PRO</span>
-                  ) : (
-                    <span className="text-xs text-slate-400">Free</span>
-                  )}
-                </td>
-                <td className="px-5 py-3">
                   {u.is_banned ? (
                     <span className="inline-flex items-center gap-1.5 text-xs text-red-500">
                       <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> Заблокирован
@@ -89,15 +81,6 @@ function UsersView({ users, meId, onBan, onPro, onDelete }) {
                   {u.id !== meId && (
                     <div className="flex items-center justify-end gap-1.5">
                       <button
-                        onClick={() => onPro(u.id)}
-                        title={u.is_pro ? 'Забрать Pro' : 'Выдать Pro'}
-                        className={`w-8 h-8 rounded-lg text-sm transition ${
-                          u.is_pro
-                            ? 'bg-amber-100 text-amber-600 hover:bg-amber-200'
-                            : 'bg-slate-100 text-slate-400 hover:bg-amber-50 hover:text-amber-500'
-                        }`}
-                      >★</button>
-                      <button
                         onClick={() => onBan(u.id)}
                         title={u.is_banned ? 'Разблокировать' : 'Заблокировать'}
                         className={`w-8 h-8 rounded-lg text-sm transition ${
@@ -108,6 +91,11 @@ function UsersView({ users, meId, onBan, onPro, onDelete }) {
                       >
                         {u.is_banned ? '✓' : '⊘'}
                       </button>
+                      <button
+                        onClick={() => onResetPw(u.id, u.email)}
+                        title="Сменить пароль"
+                        className="w-8 h-8 rounded-lg text-sm bg-slate-100 text-slate-400 hover:bg-sky-100 hover:text-sky-600 transition"
+                      >🔑</button>
                       <button
                         onClick={() => onDelete(u.id, u.email)}
                         title="Удалить пользователя"
@@ -147,10 +135,10 @@ function StatsView({ stats }) {
         <p className="text-sm text-slate-400">Общая информация о системе</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-4 mb-6">
         {[
           ['👤', 'bg-sky-100', 'Всего пользователей', stats.total_users],
-          ['⭐', 'bg-amber-100', 'Тариф Pro', stats.pro_users],
+
           ['📄', 'bg-pink-100', 'Создано диаграмм', stats.total_diagrams],
           ['💰', 'bg-purple-100', 'Выручка, ₽', stats.total_revenue],
         ].map(([icon, bg, label, value]) => (
@@ -226,12 +214,14 @@ export default function Admin() {
     }
   };
 
-  const togglePro = async (id) => {
+  const resetPassword = async (id, email) => {
+    const password = window.prompt(`Новый пароль для ${email}:`);
+    if (!password) return;
     try {
-      await api.post(`/admin/users/${id}/pro`);
-      load();
+      await api.post(`/admin/users/${id}/password`, { password });
+      window.alert('Пароль обновлён');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Ошибка');
+      window.alert(err.response?.data?.detail || 'Ошибка смены пароля');
     }
   };
 
@@ -261,7 +251,7 @@ export default function Admin() {
         {view === 'stats' ? (
           <StatsView stats={stats} />
         ) : (
-          <UsersView users={users} meId={user?.id} onBan={toggleBan} onPro={togglePro} onDelete={deleteUser} />
+          <UsersView users={users} meId={user?.id} onBan={toggleBan} onDelete={deleteUser} onResetPw={resetPassword} />
         )}
       </div>
     </SideNav>

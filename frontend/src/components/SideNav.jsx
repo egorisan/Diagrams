@@ -1,7 +1,5 @@
-import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Logo from './Logo';
-import Paywall from './Paywall';
 import { useAuth } from '../store/auth';
 
 const ITEMS = [
@@ -17,7 +15,6 @@ const BOTTOM = [
 
 export default function SideNav({ children, headerSlot }) {
   const { user, logout } = useAuth();
-  const [paywall, setPaywall] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
@@ -88,16 +85,6 @@ export default function SideNav({ children, headerSlot }) {
         <header className="h-16 flex items-center gap-3 px-6 shrink-0">
           {headerSlot}
           <div className="flex-1" />
-          {user?.is_pro ? (
-            <span className="text-xs font-bold text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg">⭐ PRO</span>
-          ) : user && (
-            <button
-              onClick={() => setPaywall(true)}
-              className="text-xs font-semibold text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition"
-            >
-              ⭐ Free → Pro
-            </button>
-          )}
           <div className="flex items-center gap-2">
             <span className="w-9 h-9 rounded-full bg-purple-200 text-purple-700 flex items-center justify-center font-bold text-sm">
               {(user?.email?.[0] || '?').toUpperCase()}
@@ -112,8 +99,6 @@ export default function SideNav({ children, headerSlot }) {
 
         <main className="flex-1 overflow-y-auto min-h-0">{children}</main>
       </div>
-
-      <Paywall open={paywall} onClose={() => setPaywall(false)} />
     </div>
   );
 }

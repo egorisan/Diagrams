@@ -73,6 +73,39 @@ export default function StylePanel({ node, onChange, onDelete }) {
         </select>
       </div>
 
+      <div>
+        <p className="text-xs text-slate-400 mb-1.5">Поворот</p>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => set('rotation', ((data.rotation || 0) + 270) % 360)}
+            title="Повернуть на 90° против часовой"
+            className="w-9 py-2 border border-slate-200 rounded-xl bg-slate-50 text-sm hover:border-pink-300 transition"
+          >⟲</button>
+          <input
+            type="number"
+            min="0"
+            max="360"
+            value={data.rotation || 0}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              if (Number.isFinite(v)) set('rotation', ((v % 360) + 360) % 360);
+            }}
+            className="flex-1 px-2 py-2 border border-slate-200 rounded-xl bg-slate-50 text-sm text-center outline-none focus:ring-2 focus:ring-pink-400"
+          />
+          <button
+            onClick={() => set('rotation', ((data.rotation || 0) + 90) % 360)}
+            title="Повернуть на 90° по часовой"
+            className="w-9 py-2 border border-slate-200 rounded-xl bg-slate-50 text-sm hover:border-pink-300 transition"
+          >⟳</button>
+        </div>
+        {(data.rotation || 0) !== 0 && (
+          <button
+            onClick={() => set('rotation', 0)}
+            className="w-full mt-1.5 text-[11px] text-slate-400 hover:text-pink-500 transition"
+          >Сбросить поворот</button>
+        )}
+      </div>
+
       <button
         onClick={() => onDelete(node.id)}
         className="w-full flex items-center justify-center gap-2 py-2.5 mt-2 rounded-xl border border-pink-200 text-pink-600 text-sm font-medium hover:bg-pink-50 transition"

@@ -22,7 +22,7 @@ function ShapeThumb({ n }) {
       return (
         <g {...common}>
           <ellipse cx={w / 2} cy="10" rx={w / 2 - 2} ry="9" />
-          <path d={`M2,10 L2,${h - 10} A${w / 2 - 2},9 0 0,0 ${w - 2},${h - 10} L${w - 2},10`} />
+          <path d={`M2,10 L2,${h - 10} A${w / 2 - 2},9 0 0,1 ${w - 2},${h - 10} L${w - 2},10`} />
         </g>
       );
     case 'actor':
@@ -106,7 +106,7 @@ export default function DiagramPreview({ content, className = '' }) {
           );
         })}
         {sized.map((n) => (
-          <g key={n.id} transform={`translate(${n.position.x},${n.position.y})`}>
+          <g key={n.id} transform={`translate(${n.position.x},${n.position.y}) rotate(${n.data?.rotation || 0} ${n._s.w / 2} ${n._s.h / 2})`}>
             <ShapeThumb n={n} />
           </g>
         ))}

@@ -64,6 +64,12 @@ class PaymentCreateResponse(BaseModel):
     confirmation_url: str
     payment_id: str
 
+class ProjectRename(BaseModel):
+    name: str
+
+class DiagramRename(BaseModel):
+    name: str
+
 # --- Admin ---
 class AdminUserResponse(BaseModel):
     id: UUID
@@ -76,6 +82,9 @@ class AdminUserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class AdminPasswordReset(BaseModel):
+    password: str
 
 class AdminStats(BaseModel):
     total_users: int

@@ -6,8 +6,9 @@ import uuid
 
 from app.database import get_db
 from app.models import User, Diagram, ExportLog, Transaction
-from app.schemas import AdminUserResponse, AdminStats
+from app.schemas import AdminUserResponse, AdminStats, AdminPasswordReset
 from app.routers.auth import get_current_user
+from app.core.security import get_password_hash
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -48,6 +49,20 @@ async def toggle_pro(user_id: uuid.UUID, db: AsyncSession = Depends(get_db), adm
     await db.commit()
     await db.refresh(user)
     return user
+
+
+@router.post("/users/{user_id}/password")
+async def reset_password(user_id: uuid.UUID, data: AdminPasswordReset, db: AsyncSession = Depends(get_db), admin: User = Depends(get_admin)):
+    """Смена пароля пользователю админом (если юзер забыл свой)."""
+    if len(data.password) < 6:
+        raise HTTPException(status_code=400, detail="Пароль должен быть не короче 6 символов")
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    user.password_hash = get_password_hash(data.password)
+    await db.commit()
+    return {"status": "password_changed"}
 
 
 @router.delete("/users/{user_id}")

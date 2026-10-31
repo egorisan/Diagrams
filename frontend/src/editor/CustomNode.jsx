@@ -44,7 +44,7 @@ function ShapeBox({ data, selected, children, className = '', style = {} }) {
 }
 
 export default memo(function CustomNode({ id, data, selected }) {
-  const { updateNodeData } = useReactFlow();
+  const { updateNodeData, getNode, flowToScreenPosition } = useReactFlow();
   const [draft, setDraft] = useState(data.label);
   const editing = !!data.editing;
 
@@ -53,9 +53,42 @@ export default memo(function CustomNode({ id, data, selected }) {
     updateNodeData(id, { label: draft, editing: false });
   };
 
+  // Свободный поворот: тянем за ручку над нодой, угол 0–360° (Shift — шаг 15°)
+  const startRotate = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    window.dispatchEvent(new CustomEvent('editor:snapshot'));
+    const onMove = (ev) => {
+      const n = getNode(id);
+      if (!n) return;
+      const w = n.measured?.width ?? 110;
+      const h = n.measured?.height ?? 50;
+      const c = flowToScreenPosition({ x: n.position.x + w / 2, y: n.position.y + h / 2 });
+      let deg = Math.atan2(ev.clientY - c.y, ev.clientX - c.x) * (180 / Math.PI) + 90;
+      deg = ev.shiftKey ? Math.round(deg / 15) * 15 : Math.round(deg);
+      updateNodeData(id, { rotation: ((deg % 360) + 360) % 360 });
+    };
+    const onUp = () => window.removeEventListener('pointermove', onMove);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp, { once: true });
+  };
+
+  const rot = data.rotation || 0;
   const body = (shapeEl) => (
-    <>
+    <div className="group relative">
       <Handles id={id} />
+      {!editing && (
+        <>
+          <div className={`absolute -top-7 left-1/2 w-px h-3.5 border-l border-dashed border-pink-400 pointer-events-none transition-opacity ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-60'}`} />
+          <div
+            className={`nodrag absolute -top-10 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-pink-500 border-2 border-white shadow-md cursor-grab flex items-center justify-center text-white select-none transition-opacity ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+            title="Потяните мышью, чтобы повернуть (Shift — шаг 15°)"
+            onPointerDown={startRotate}
+          >
+            <span className="text-[10px] leading-none">⟳</span>
+          </div>
+        </>
+      )}
       {editing ? (
         <input
           autoFocus
@@ -70,9 +103,11 @@ export default memo(function CustomNode({ id, data, selected }) {
           style={{ color: '#1e293b' }}
         />
       ) : (
-        shapeEl
+        <div style={rot ? { transform: `rotate(${rot}deg)`, transformOrigin: 'center center' } : undefined}>
+          {shapeEl}
+        </div>
       )}
-    </>
+    </div>
   );
 
   const shape = data.shape || 'rect';
@@ -106,9 +141,8 @@ export default memo(function CustomNode({ id, data, selected }) {
       return body(
         <div className={`relative ${selected ? 'drop-shadow-[0_0_4px_#3b82f6]' : ''}`}>
           <svg width="120" height="80" viewBox="0 0 120 80">
-            <ellipse cx="60" cy="12" rx="55" ry="10" fill={data.fill} stroke={data.stroke} strokeWidth="2" />
             <path d="M5,12 L5,66 A55,10 0 0,0 115,66 L115,12" fill={data.fill} stroke={data.stroke} strokeWidth="2" />
-            <ellipse cx="60" cy="66" rx="55" ry="10" fill="none" stroke={data.stroke} strokeWidth="2" />
+            <ellipse cx="60" cy="12" rx="55" ry="10" fill={data.fill} stroke={data.stroke} strokeWidth="2" />
           </svg>
           <span className="absolute inset-0 flex items-center justify-center pt-3 px-2 text-center" style={{ color: common.color, fontSize: common.fontSize }}>
             {data.label}

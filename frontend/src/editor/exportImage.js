@@ -36,9 +36,8 @@ function shapeSvg(n, x, y, w, h) {
       return `<polygon points="${x + w / 2},${y + 2} ${x + w - 2},${y + h / 2} ${x + w / 2},${y + h - 2} ${x + 2},${y + h / 2}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
     case 'cylinder': {
       const ry = 10;
-      return `<ellipse cx="${x + w / 2}" cy="${y + ry}" rx="${w / 2 - sw}" ry="${ry}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>` +
-        `<path d="M${x + sw},${y + ry} L${x + sw},${y + h - ry} A${w / 2 - sw},${ry} 0 0,0 ${x + w - sw},${y + h - ry} L${x + w - sw},${y + ry}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>` +
-        `<ellipse cx="${x + w / 2}" cy="${y + h - ry}" rx="${w / 2 - sw}" ry="${ry}" fill="none" stroke="${stroke}" stroke-width="${sw}"/>`;
+      return `<path d="M${x + sw},${y + ry} L${x + sw},${y + h - ry} A${w / 2 - sw},${ry} 0 0,1 ${x + w - sw},${y + h - ry} L${x + w - sw},${y + ry}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>` +
+        `<ellipse cx="${x + w / 2}" cy="${y + ry}" rx="${w / 2 - sw}" ry="${ry}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
     }
     case 'actor': {
       const cx = x + w / 2;
@@ -119,7 +118,9 @@ export function buildDiagramSvg(nodes, edges, { watermark = false } = {}) {
     maxX = Math.max(maxX, n.position.x + n._s.w);
     maxY = Math.max(maxY, n.position.y + n._s.h + 30); // запас под подписи актора
   }
-  const pad = 40;
+  // Отступ от краёв: 48px — оптимальный баланс: достаточно воздуха, чтобы
+  // не обрезать маркеры/подписи, но не размывать внимание пустым полем
+  const pad = 48;
   const W = Math.max(400, maxX - minX + pad * 2);
   const H = Math.max(300, maxY - minY + pad * 2);
   const ox = pad - minX, oy = pad - minY;
@@ -159,7 +160,11 @@ export function buildDiagramSvg(nodes, edges, { watermark = false } = {}) {
   const nodeParts = sized.map((n) => {
     const x = n.position.x + ox, y = n.position.y + oy;
     const { w, h } = n._s;
-    return shapeSvg(n, x, y, w, h) + labelSvg(n, x, y, w, h, n.data?.shape);
+    const inner = shapeSvg(n, x, y, w, h) + labelSvg(n, x, y, w, h, n.data?.shape);
+    const rot = n.data?.rotation || 0;
+    return rot
+      ? `<g transform="rotate(${rot} ${x + w / 2} ${y + h / 2})">${inner}</g>`
+      : inner;
   });
 
   let wm = '';

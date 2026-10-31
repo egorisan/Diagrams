@@ -18,10 +18,10 @@ export const SHAPES = {
 };
 
 export const PALETTES = {
-  class: ['umlclass', 'umlinterface', 'umlabstract', 'umlenum', 'package', 'note'],
-  object: ['rect', 'umlclass', 'rounded', 'package'],
+  class: ['umlclass', 'umlinterface', 'umlabstract', 'umlenum', 'package', 'cylinder', 'note'],
+  object: ['rect', 'umlclass', 'rounded', 'package', 'cylinder'],
   c4: ['actor', 'rect', 'rounded', 'cylinder', 'container'],
-  usecase: ['actor', 'ellipse', 'container'],
+  usecase: ['actor', 'ellipse', 'cylinder', 'container'],
   er: ['rect', 'diamond', 'ellipse', 'cylinder'],
   component: ['component', 'rect', 'container', 'cylinder', 'package'],
   custom: Object.keys(SHAPES),

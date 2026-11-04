@@ -1,5 +1,5 @@
 # АРХИТЕКТУРА ПРОЕКТА
-Diagrams / 24KT Diagrams
+Diagrams / FastDia
 
 ## Краткое резюме
 

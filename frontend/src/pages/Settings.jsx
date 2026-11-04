@@ -31,7 +31,7 @@ export default function Settings() {
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
           <h2 className="text-sm font-semibold text-slate-700 mb-4">О приложении</h2>
           <div className="space-y-2 text-sm text-slate-500">
-            <p>24KT_Diagrams — онлайн-редактор диаграмм</p>
+            <p>FastDia — онлайн-редактор диаграмм</p>
             <p className="text-xs text-slate-400">Версия 1.0.0 · MVP</p>
           </div>
         </div>

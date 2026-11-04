@@ -9,7 +9,7 @@ export default function Logo({ size = 'md', withText = true }) {
         <span className="rounded-[3px] bg-sky-400 row-start-2" />
         <span className="rounded-[3px] bg-sky-500 row-start-1 col-start-2 translate-y-[5px]" />
       </span>
-      {withText && <span className={`font-bold text-slate-800 ${text}`}>24KT_Diagrams</span>}
+      {withText && <span className={`font-bold text-slate-800 ${text}`}>FastDia</span>}
     </span>
   );
 }

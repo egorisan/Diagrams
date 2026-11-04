@@ -2,7 +2,7 @@
 // затем SVG скачивается напрямую или растрируется в PNG/JPG через canvas.
 // html-to-image не используется — он теряет SVG-маркеры стрелок и фон подписей.
 
-const WATERMARK = 'Создано в 24KT_Diagrams';
+const WATERMARK = 'Создано в FastDia';
 
 const SIZES = {
   container: { w: 220, h: 140 },

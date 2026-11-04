@@ -98,7 +98,7 @@ export default function Landing() {
               Создавайте<br />диаграммы <span className="text-pink-500">легко</span>
             </h1>
             <p className="text-slate-500 mb-8 max-w-md">
-              24KT_Diagrams — удобный онлайн-редактор для создания блок-схем, UML-диаграмм,
+              FastDia — удобный онлайн-редактор для создания блок-схем, UML-диаграмм,
               интеллект-карт и многого другого. Визуализируйте идеи, структурируйте
               процессы и работайте вместе.
             </p>
@@ -116,7 +116,7 @@ export default function Landing() {
 
         <section id="features" className="py-14 scroll-mt-6">
           <h2 className="text-3xl font-bold text-center text-slate-800 mb-2">
-            Почему <span className="text-pink-500">24KT_Diagrams?</span>
+            Почему <span className="text-pink-500">FastDia?</span>
           </h2>
           <p className="text-center text-slate-400 mb-10 text-sm">Воплощайте идеи в схемах</p>
           <div className="grid md:grid-cols-3 gap-6">
@@ -151,7 +151,7 @@ export default function Landing() {
           <div className="max-w-2xl mx-auto text-center">
             <h2 className="text-3xl font-bold text-slate-800 mb-4">О нас</h2>
             <p className="text-slate-500 text-sm leading-relaxed">
-              24KT_Diagrams — это простой и быстрый онлайн-редактор диаграмм.
+              FastDia — это простой и быстрый онлайн-редактор диаграмм.
               Мы верим, что визуализация идей не должна требовать сложных инструментов:
               откройте браузер, перетащите элементы на холст — и ваша схема готова.
             </p>
@@ -160,7 +160,7 @@ export default function Landing() {
       </main>
 
       <footer className="border-t border-slate-200/60 py-6 text-center text-xs text-slate-400">
-        24KT_Diagrams · Версия 1.0.0
+        FastDia · Версия 1.0.0
       </footer>
     </div>
   );

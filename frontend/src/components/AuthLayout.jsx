@@ -42,7 +42,7 @@ export default function AuthLayout({ children, title, subtitle }) {
             Ваши идеи<br />в <span className="text-gradient">наглядных</span><br />диаграммах
           </h1>
           <p className="text-slate-500 mb-8 max-w-sm">
-            24KT_Diagrams — удобный онлайн-редактор для создания блок-схем, UML-диаграмм,
+            FastDia — удобный онлайн-редактор для создания блок-схем, UML-диаграмм,
             mind map и многого другого.
           </p>
           <ul className="space-y-4">

@@ -77,7 +77,7 @@ export default function SideNav({ children, headerSlot }) {
           {inAdmin && (
             <Link to="/dashboard" className="block text-xs text-slate-400 hover:text-slate-600">← На сайт</Link>
           )}
-          <div className="text-[11px] text-slate-300">24KT_Diagrams · Версия 1.0.0</div>
+          <div className="text-[11px] text-slate-300">FastDia · Версия 1.0.0</div>
         </div>
       </aside>
 

@@ -17,7 +17,7 @@ Diagrams — веб-приложение для создания и редакт
 | Хранение диаграмм | JSONB: nodes, edges и viewport в `content` |
 | Аутентификация | JWT access token + refresh token в HttpOnly cookie |
 | Платежи | Нет (подсистема удалена; всем пользователям доступен полный функционал) |
-| Развёртывание | Прод: Nginx (статика SPA) + systemd/uvicorn + локальный PostgreSQL |
+| Развёртывание | Прод: Nginx + systemd/uvicorn + PostgreSQL; альтернативно Docker Compose (db + backend + frontend), см. DEPLOY.md |
 
 ## 1. Обзор проекта
 

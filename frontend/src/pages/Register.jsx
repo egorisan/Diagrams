@@ -11,31 +11,41 @@ export default function Register() {
   const [confirm, setConfirm] = useState('');
   const [agree, setAgree] = useState(false);
   const [legal, setLegal] = useState(null);
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    setError('');
-    if (password.length < 6) return setError('Пароль должен быть не короче 6 символов');
-    if (password !== confirm) return setError('Пароли не совпадают');
-    if (!agree) return setError('Необходимо принять условия использования');
+    const errs = {};
+    if (!email.trim()) errs.email = 'Введите электронную почту';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = 'Некорректный формат почты';
+    if (password.length < 6) errs.password = 'Пароль должен быть не короче 6 символов';
+    else if (!/\p{L}/u.test(password) || !/\d/.test(password)) errs.password = 'Пароль должен содержать буквы и цифры';
+    if (!confirm) errs.confirm = 'Повторите пароль';
+    else if (password !== confirm) errs.confirm = 'Пароли не совпадают';
+    if (!agree) errs.agree = 'Необходимо принять условия использования';
+    setErrors(errs);
+    if (Object.keys(errs).length) return;
     setBusy(true);
     try {
       await register(email, password);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Ошибка регистрации');
+      const msg = err.response?.data?.detail;
+      const text = typeof msg === 'string' ? msg : 'Ошибка регистрации';
+      setErrors(/Email/i.test(text) ? { email: text } : { password: text });
     } finally {
       setBusy(false);
     }
   };
 
+  const clear = (k) => errors[k] && setErrors((x) => ({ ...x, [k]: undefined }));
+
   return (
     <AuthLayout title="Регистрация" subtitle="Создайте аккаунт, чтобы начать работать">
-      <form onSubmit={handleRegister} className="space-y-4">
+      <form onSubmit={handleRegister} noValidate className="space-y-4">
         <div>
           <label className="block text-xs font-medium text-slate-500 mb-1.5">Имя</label>
           <AuthInput
@@ -53,9 +63,9 @@ export default function Register() {
             type="email"
             icon="✉️"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => { setEmail(e.target.value); clear('email'); }}
             placeholder="example@mail.ru"
-            required
+            error={errors.email}
           />
         </div>
 
@@ -65,9 +75,9 @@ export default function Register() {
             type="password"
             icon="🔒"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Минимум 6 символов"
-            required
+            onChange={(e) => { setPassword(e.target.value); clear('password'); }}
+            placeholder="Минимум 6 символов, буквы и цифры"
+            error={errors.password}
           />
         </div>
 
@@ -77,18 +87,19 @@ export default function Register() {
             type="password"
             icon="🔒"
             value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
+            onChange={(e) => { setConfirm(e.target.value); clear('confirm'); }}
             placeholder="Повторите пароль"
-            required
+            error={errors.confirm}
           />
         </div>
 
+        <div>
         <div className="flex items-start gap-2 text-xs text-slate-500">
           <input
             type="checkbox"
             checked={agree}
-            onChange={(e) => setAgree(e.target.checked)}
-            className="w-4 h-4 mt-0.5 accent-pink-500 cursor-pointer"
+            onChange={(e) => { setAgree(e.target.checked); clear('agree'); }}
+            className={`w-4 h-4 mt-0.5 accent-pink-500 cursor-pointer ${errors.agree ? 'outline-2 outline-[#EF4444] outline-offset-1' : ''}`}
           />
           <span>
             Я соглашаюсь с{' '}
@@ -101,8 +112,8 @@ export default function Register() {
             </button>
           </span>
         </div>
-
-        {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+        {errors.agree && <p className="text-sm text-[#EF4444] mt-1">{errors.agree}</p>}
+        </div>
 
         <button
           type="submit"

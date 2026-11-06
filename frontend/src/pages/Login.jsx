@@ -3,56 +3,66 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import AuthLayout, { AuthInput } from '../components/AuthLayout';
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [remember, setRemember] = useState(true);
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError('');
+    const errs = {};
+    if (!email.trim()) errs.email = 'Введите электронную почту';
+    else if (!EMAIL_RE.test(email)) errs.email = 'Некорректный формат почты';
+    if (!password) errs.password = 'Введите пароль';
+    setErrors(errs);
+    if (Object.keys(errs).length) return;
     setBusy(true);
     try {
       await login(email, password);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Ошибка входа');
+      const msg = err.response?.data?.detail || 'Ошибка входа';
+      // Неверные учётные данные — подсвечиваем оба поля
+      setErrors({ email: true, password: typeof msg === 'string' ? msg : 'Ошибка входа' });
     } finally {
       setBusy(false);
     }
   };
 
+  const clear = (k) => errors[k] && setErrors((x) => ({ ...x, [k]: undefined }));
+
   return (
     <AuthLayout title="Вход" subtitle="Добро пожаловать обратно!">
-      <form onSubmit={handleLogin} className="space-y-4">
+      <form onSubmit={handleLogin} noValidate className="space-y-4">
         <div>
           <label className="block text-xs font-medium text-slate-500 mb-1.5">Электронная почта</label>
           <AuthInput
             type="email"
             icon="✉️"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => { setEmail(e.target.value); clear('email'); }}
             placeholder="Введите вашу почту"
-            required
+            error={errors.email}
           />
         </div>
 
         <div>
           <label className="block text-xs font-medium text-slate-500 mb-1.5">Пароль</label>
-          <div className="relative">
-            <AuthInput
-              type={showPw ? 'text' : 'password'}
-              icon="🔒"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Введите пароль"
-              required
-            />
+          <AuthInput
+            type={showPw ? 'text' : 'password'}
+            icon="🔒"
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); clear('password'); }}
+            placeholder="Введите пароль"
+            error={errors.password}
+          >
             <button
               type="button"
               onClick={() => setShowPw(!showPw)}
@@ -60,7 +70,7 @@ export default function Login() {
             >
               {showPw ? '🙈' : '👁'}
             </button>
-          </div>
+          </AuthInput>
         </div>
 
         <div className="flex items-center justify-between text-xs">
@@ -75,8 +85,6 @@ export default function Login() {
           </label>
           <span className="text-pink-500 cursor-default">Забыли пароль?</span>
         </div>
-
-        {error && <p className="text-sm text-red-500 text-center">{error}</p>}
 
         <button
           type="submit"

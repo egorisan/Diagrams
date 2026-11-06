@@ -53,6 +53,9 @@ async def register(user_data: UserCreate, response: Response, db: AsyncSession =
     result = await db.execute(select(User).where(User.email == user_data.email))
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="Этот Email уже зарегистрирован")
+    pw = user_data.password
+    if len(pw) < 6 or not any(c.isalpha() for c in pw) or not any(c.isdigit() for c in pw):
+        raise HTTPException(status_code=400, detail="Пароль должен быть не короче 6 символов и содержать буквы и цифры")
 
     # Первый зарегистрированный пользователь становится администратором
     total = (await db.execute(select(func.count(User.id)))).scalar() or 0

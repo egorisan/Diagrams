@@ -1,5 +1,6 @@
-import { memo, useState } from 'react';
-import { Handle, Position, useReactFlow } from '@xyflow/react';
+import { memo, useEffect, useRef, useState } from 'react';
+import { Handle, NodeResizer, Position, useReactFlow, useStore } from '@xyflow/react';
+import { defaultSize, isUml, UML_STEREO, umlMetrics } from './palette';
 
 const SIDES = [
   { pos: Position.Top, style: { top: -5 } },
@@ -24,45 +25,119 @@ function Handles({ id }) {
   ));
 }
 
-function ShapeBox({ data, selected, children, className = '', style = {} }) {
+const FIELD_TITLES = { label: 'Название', attributes: 'Атрибуты', methods: 'Методы' };
+
+// Многострочный редактор поверх ноды: Enter — новая строка,
+// Ctrl/⌘+Enter или клик мимо — сохранить, Esc — отмена
+function InlineEditor({ value, field, onCommit, onCancel }) {
+  const [draft, setDraft] = useState(value || '');
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el) { el.focus(); el.select(); }
+  }, []);
+  return (
+    <div className="nodrag nowheel absolute inset-0 z-20 min-w-[140px] min-h-[64px] flex flex-col bg-white border-2 border-blue-400 rounded shadow-lg">
+      <span className="px-2 pt-1 text-[10px] text-blue-500 select-none">
+        {FIELD_TITLES[field]} · Ctrl+Enter — готово
+      </span>
+      <textarea
+        ref={ref}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => onCommit(draft)}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) onCommit(draft);
+          if (e.key === 'Escape') onCancel();
+        }}
+        className="flex-1 w-full px-2 pb-1 text-sm text-slate-800 resize-none outline-none bg-transparent"
+        rows={Math.max(2, draft.split('\n').length)}
+      />
+    </div>
+  );
+}
+
+const textStyle = (data) => ({ color: data.textColor, fontSize: data.fontSize || 14, lineHeight: 1.25 });
+
+function UmlBox({ data, shape, sized, onEditField }) {
+  const stereo = UML_STEREO[shape];
+  const m = umlMetrics(data.fontSize || 14, !!stereo);
+  const section = (field, grow) => (
+    <div
+      onDoubleClick={(e) => { e.stopPropagation(); onEditField(field); }}
+      title={`Двойной клик — редактировать: ${FIELD_TITLES[field].toLowerCase()}`}
+      className={`text-left whitespace-pre font-mono overflow-hidden ${grow ? 'flex-1' : ''}`}
+      style={{
+        color: data.textColor,
+        fontSize: m.sfs,
+        lineHeight: `${m.lineH}px`,
+        padding: `${m.padY}px ${m.padX}px`,
+        minHeight: m.lineH + m.padY * 2,
+      }}
+    >
+      {data[field] || ''}
+    </div>
+  );
   return (
     <div
-      className={`relative flex items-center justify-center text-center whitespace-pre-wrap px-3 py-2 ${className} ${selected ? 'ring-2 ring-blue-500 ring-offset-1' : ''}`}
+      className="flex flex-col border-2 rounded-sm"
       style={{
         background: data.fill,
         borderColor: data.stroke,
-        color: data.textColor,
-        fontSize: data.fontSize || 14,
-        minWidth: 110,
-        minHeight: 48,
-        ...style,
+        ...(sized ? { width: '100%', height: '100%' } : { minWidth: defaultSize(shape).w }),
       }}
     >
-      {children ?? data.label}
+      <div
+        className="border-b-2 text-center flex flex-col justify-center"
+        style={{ borderColor: data.stroke, height: m.headerH, paddingLeft: m.padX, paddingRight: m.padX }}
+      >
+        {stereo && (
+          <div style={{ color: data.textColor, opacity: 0.7, fontSize: 9, lineHeight: '12px' }}>{stereo}</div>
+        )}
+        <div
+          className={`font-semibold whitespace-nowrap overflow-hidden text-ellipsis ${shape === 'umlabstract' ? 'italic' : ''}`}
+          style={{ color: data.textColor, fontSize: m.fs, lineHeight: `${m.nameLH}px` }}
+        >
+          {data.label}
+        </div>
+      </div>
+      {section('attributes', true)}
+      <div className="border-t" style={{ borderColor: data.stroke }} />
+      {section('methods', false)}
     </div>
   );
 }
 
 export default memo(function CustomNode({ id, data, selected }) {
   const { updateNodeData, getNode, flowToScreenPosition } = useReactFlow();
-  const [draft, setDraft] = useState(data.label);
-  const editing = !!data.editing;
+  // Явный размер есть только после ручного ресайза (node.width/height); props width/height —
+  // это измеренный размер, по нему ориентироваться нельзя (иначе фигура «схлопнется»)
+  const width = useStore((s) => s.nodeLookup.get(id)?.width);
+  const height = useStore((s) => s.nodeLookup.get(id)?.height);
+  const editing = data.editing === true ? 'label' : data.editing || null;
+  const shape = data.shape || 'rect';
+  const sized = width != null && height != null;
+  const def = defaultSize(shape);
+  const W = sized ? width : def.w;
+  const H = sized ? height : def.h;
 
-  const commit = () => {
-    window.dispatchEvent(new CustomEvent('editor:snapshot'));
-    updateNodeData(id, { label: draft, editing: false });
+  const snapshot = () => window.dispatchEvent(new CustomEvent('editor:snapshot'));
+  const commit = (value) => {
+    if (value !== (data[editing] || '')) snapshot();
+    updateNodeData(id, { [editing]: value, editing: false });
   };
 
   // Свободный поворот: тянем за ручку над нодой, угол 0–360° (Shift — шаг 15°)
   const startRotate = (e) => {
     e.stopPropagation();
     e.preventDefault();
-    window.dispatchEvent(new CustomEvent('editor:snapshot'));
+    snapshot();
     const onMove = (ev) => {
       const n = getNode(id);
       if (!n) return;
-      const w = n.measured?.width ?? 110;
-      const h = n.measured?.height ?? 50;
+      const w = n.measured?.width ?? W;
+      const h = n.measured?.height ?? H;
       const c = flowToScreenPosition({ x: n.position.x + w / 2, y: n.position.y + h / 2 });
       let deg = Math.atan2(ev.clientY - c.y, ev.clientX - c.x) * (180 / Math.PI) + 90;
       deg = ev.shiftKey ? Math.round(deg / 15) * 15 : Math.round(deg);
@@ -74,14 +149,129 @@ export default memo(function CustomNode({ id, data, selected }) {
   };
 
   const rot = data.rotation || 0;
-  const body = (shapeEl) => (
-    <div className="group relative">
+  const glow = selected ? 'drop-shadow-[0_0_4px_#3b82f6]' : '';
+  const ring = selected ? 'ring-2 ring-blue-500 ring-offset-1' : '';
+  // Блочные фигуры: растягиваются на размер ноды, иначе — минимальный размер с автоподстройкой под текст
+  const boxSize = sized ? { width: '100%', height: '100%' } : { minWidth: def.w, minHeight: def.h };
+  const label = <span className="whitespace-pre-wrap break-words" style={textStyle(data)}>{data.label}</span>;
+
+  const box = (className, style = {}, contentClass = 'items-center justify-center text-center') => (
+    <div
+      className={`flex px-3 py-2 ${contentClass} ${className} ${ring}`}
+      style={{ background: data.fill, borderColor: data.stroke, ...boxSize, ...style }}
+    >
+      {label}
+    </div>
+  );
+
+  // SVG-фигуры: всегда явный размер (по умолчанию или после ресайза)
+  const svgShape = (svg, labelClass = 'items-center justify-center') => (
+    <div className={`relative ${glow}`} style={{ width: W, height: H }}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 overflow-visible">{svg}</svg>
+      <div className={`absolute inset-0 flex text-center px-4 ${labelClass}`}>{label}</div>
+    </div>
+  );
+
+  let shapeEl;
+  switch (shape) {
+    case 'rounded':
+      shapeEl = box('rounded-2xl border-2');
+      break;
+    case 'ellipse':
+      shapeEl = box('rounded-[50%] border-2');
+      break;
+    case 'diamond':
+      shapeEl = svgShape(
+        <polygon points={`${W / 2},2 ${W - 2},${H / 2} ${W / 2},${H - 2} 2,${H / 2}`} fill={data.fill} stroke={data.stroke} strokeWidth="2" />
+      );
+      break;
+    case 'cylinder': {
+      const ry = Math.min(10, H / 6);
+      shapeEl = svgShape(
+        <>
+          <path d={`M2,${ry} L2,${H - ry} A${W / 2 - 2},${ry} 0 0,0 ${W - 2},${H - ry} L${W - 2},${ry}`} fill={data.fill} stroke={data.stroke} strokeWidth="2" />
+          <ellipse cx={W / 2} cy={ry} rx={W / 2 - 2} ry={ry} fill={data.fill} stroke={data.stroke} strokeWidth="2" />
+        </>,
+        'items-center justify-center pt-4'
+      );
+      break;
+    }
+    case 'actor': {
+      const cx = W / 2;
+      const headR = Math.min(W, H) * 0.12;
+      shapeEl = (
+        <div className={`relative flex flex-col items-center ${glow}`} style={{ width: W }}>
+          <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="overflow-visible">
+            <g stroke={data.stroke} strokeWidth="2" fill="none">
+              <circle cx={cx} cy={headR + 2} r={headR} fill={data.fill} />
+              <line x1={cx} y1={headR * 2 + 2} x2={cx} y2={H * 0.6} />
+              <line x1={W * 0.1} y1={H * 0.35} x2={W * 0.9} y2={H * 0.35} />
+              <line x1={cx} y1={H * 0.6} x2={W * 0.2} y2={H - 4} />
+              <line x1={cx} y1={H * 0.6} x2={W * 0.8} y2={H - 4} />
+            </g>
+          </svg>
+          <div className="absolute top-full mt-1 text-center w-max max-w-[200px]">{label}</div>
+        </div>
+      );
+      break;
+    }
+    case 'component':
+      shapeEl = (
+        <div className={`relative pl-2 ${glow}`} style={boxSize}>
+          <div className="relative flex items-center justify-center text-center px-6 py-3 border-2 w-full h-full" style={{ background: data.fill, borderColor: data.stroke }}>
+            <span className="absolute -left-2 top-2 flex flex-col gap-1">
+              <span className="block w-3 h-1.5 border-2" style={{ borderColor: data.stroke, background: data.fill }} />
+              <span className="block w-3 h-1.5 border-2" style={{ borderColor: data.stroke, background: data.fill }} />
+            </span>
+            {label}
+          </div>
+        </div>
+      );
+      break;
+    case 'package':
+      shapeEl = (
+        <div className={`relative pt-3 flex flex-col ${glow}`} style={boxSize}>
+          <div className="absolute top-0 left-0 w-14 h-3 border-2 border-b-0 rounded-t" style={{ background: data.fill, borderColor: data.stroke }} />
+          <div className="flex-1 flex items-center justify-center text-center px-4 py-3 border-2" style={{ background: data.fill, borderColor: data.stroke }}>
+            {label}
+          </div>
+        </div>
+      );
+      break;
+    case 'container':
+      shapeEl = box('border-2 border-dashed rounded-lg', {}, 'items-start justify-start text-left');
+      break;
+    case 'note':
+      shapeEl = box('border', { background: data.fill || '#fef9c3' });
+      break;
+    default:
+      if (isUml(shape)) {
+        shapeEl = (
+          <div className={`${ring} ${sized ? 'w-full h-full' : ''}`}>
+            <UmlBox data={data} shape={shape} sized={sized} onEditField={(f) => updateNodeData(id, { editing: f })} />
+          </div>
+        );
+      } else {
+        shapeEl = box('rounded-md border-2');
+      }
+  }
+
+  return (
+    <div className={`group relative ${sized ? 'w-full h-full' : ''}`}>
+      <NodeResizer
+        isVisible={selected && !editing}
+        minWidth={40}
+        minHeight={30}
+        color="#ec4899"
+        handleStyle={{ width: 8, height: 8, borderRadius: 2 }}
+        onResizeStart={snapshot}
+      />
       <Handles id={id} />
       {!editing && (
         <>
           <div className={`absolute -top-7 left-1/2 w-px h-3.5 border-l border-dashed border-pink-400 pointer-events-none transition-opacity ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-60'}`} />
           <div
-            className={`nodrag absolute -top-10 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-pink-500 border-2 border-white shadow-md cursor-grab flex items-center justify-center text-white select-none transition-opacity ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+            className={`nodrag absolute -top-10 left-1/2 -translate-x-1/2 z-10 w-5 h-5 rounded-full bg-pink-500 border-2 border-white shadow-md cursor-grab flex items-center justify-center text-white select-none transition-opacity ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
             title="Потяните мышью, чтобы повернуть (Shift — шаг 15°)"
             onPointerDown={startRotate}
           >
@@ -89,177 +279,21 @@ export default memo(function CustomNode({ id, data, selected }) {
           </div>
         </>
       )}
-      {editing ? (
-        <input
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') commit();
-            if (e.key === 'Escape') updateNodeData(id, { editing: false });
-          }}
-          className="nodrag w-28 px-2 py-1 border border-blue-400 rounded outline-none text-sm text-center"
-          style={{ color: '#1e293b' }}
+      <div
+        className={sized ? 'w-full h-full' : ''}
+        style={rot ? { transform: `rotate(${rot}deg)`, transformOrigin: 'center center' } : undefined}
+      >
+        {shapeEl}
+      </div>
+      {editing && (
+        <InlineEditor
+          key={editing}
+          field={editing}
+          value={data[editing]}
+          onCommit={commit}
+          onCancel={() => updateNodeData(id, { editing: false })}
         />
-      ) : (
-        <div style={rot ? { transform: `rotate(${rot}deg)`, transformOrigin: 'center center' } : undefined}>
-          {shapeEl}
-        </div>
       )}
     </div>
   );
-
-  const shape = data.shape || 'rect';
-  const common = { background: data.fill, color: data.textColor, fontSize: data.fontSize || 14 };
-
-  switch (shape) {
-    case 'rounded':
-      return body(
-        <ShapeBox data={data} selected={selected} className="rounded-2xl border-2" style={{ borderColor: data.stroke }}>
-          {data.label}
-        </ShapeBox>
-      );
-    case 'diamond':
-      return body(
-        <div className={`relative flex items-center justify-center ${selected ? 'drop-shadow-[0_0_4px_#3b82f6]' : ''}`}>
-          <svg width="150" height="90" viewBox="0 0 150 90">
-            <polygon points="75,4 146,45 75,86 4,45" fill={data.fill} stroke={data.stroke} strokeWidth="2" />
-          </svg>
-          <span className="absolute text-center px-4" style={{ color: common.color, fontSize: common.fontSize }}>
-            {data.label}
-          </span>
-        </div>
-      );
-    case 'ellipse':
-      return body(
-        <ShapeBox data={data} selected={selected} className="rounded-[50%] border-2" style={{ borderColor: data.stroke, minWidth: 130, minHeight: 60 }}>
-          {data.label}
-        </ShapeBox>
-      );
-    case 'cylinder':
-      return body(
-        <div className={`relative ${selected ? 'drop-shadow-[0_0_4px_#3b82f6]' : ''}`}>
-          <svg width="120" height="80" viewBox="0 0 120 80">
-            <path d="M5,12 L5,66 A55,10 0 0,0 115,66 L115,12" fill={data.fill} stroke={data.stroke} strokeWidth="2" />
-            <ellipse cx="60" cy="12" rx="55" ry="10" fill={data.fill} stroke={data.stroke} strokeWidth="2" />
-          </svg>
-          <span className="absolute inset-0 flex items-center justify-center pt-3 px-2 text-center" style={{ color: common.color, fontSize: common.fontSize }}>
-            {data.label}
-          </span>
-        </div>
-      );
-    case 'actor':
-      return body(
-        <div className={`relative flex flex-col items-center ${selected ? 'drop-shadow-[0_0_4px_#3b82f6]' : ''}`}>
-          <svg width="50" height="80" viewBox="0 0 50 80">
-            <circle cx="25" cy="10" r="8" fill={data.fill} stroke={data.stroke} strokeWidth="2" />
-            <line x1="25" y1="18" x2="25" y2="48" stroke={data.stroke} strokeWidth="2" />
-            <line x1="5" y1="28" x2="45" y2="28" stroke={data.stroke} strokeWidth="2" />
-            <line x1="25" y1="48" x2="10" y2="72" stroke={data.stroke} strokeWidth="2" />
-            <line x1="25" y1="48" x2="40" y2="72" stroke={data.stroke} strokeWidth="2" />
-          </svg>
-          <span className="mt-1 text-center" style={{ color: common.color, fontSize: common.fontSize }}>
-            {data.label}
-          </span>
-        </div>
-      );
-    case 'component':
-      return body(
-        <div className={`relative ${selected ? 'drop-shadow-[0_0_4px_#3b82f6]' : ''}`}>
-          <div
-            className="relative flex items-center justify-center px-6 py-3 border-2 ml-2"
-            style={{ background: data.fill, borderColor: data.stroke, color: common.color, fontSize: common.fontSize, minWidth: 120, minHeight: 50 }}
-          >
-            <span className="absolute -left-2 top-2 flex flex-col gap-1">
-              <span className="block w-3 h-1.5 border-2" style={{ borderColor: data.stroke, background: data.fill }} />
-              <span className="block w-3 h-1.5 border-2" style={{ borderColor: data.stroke, background: data.fill }} />
-            </span>
-            {data.label}
-          </div>
-        </div>
-      );
-    case 'package':
-      return body(
-        <div className={`relative pt-3 ${selected ? 'drop-shadow-[0_0_4px_#3b82f6]' : ''}`}>
-          <div
-            className="absolute top-0 left-0 w-14 h-3 border-2 border-b-0 rounded-t"
-            style={{ background: data.fill, borderColor: data.stroke }}
-          />
-          <div
-            className="flex items-center justify-center px-4 py-3 border-2"
-            style={{ background: data.fill, borderColor: data.stroke, color: common.color, fontSize: common.fontSize, minWidth: 110, minHeight: 46 }}
-          >
-            {data.label}
-          </div>
-        </div>
-      );
-    case 'container':
-      return body(
-        <ShapeBox
-          data={data}
-          selected={selected}
-          className="border-2 border-dashed rounded-lg"
-          style={{ borderColor: data.stroke, minWidth: 220, minHeight: 140, alignItems: 'flex-start' }}
-        >
-          {data.label}
-        </ShapeBox>
-      );
-    case 'umlclass':
-    case 'umlinterface':
-    case 'umlabstract':
-    case 'umlenum': {
-      const STEREO = {
-        umlinterface: '«interface»',
-        umlabstract: '«abstract»',
-        umlenum: '«enumeration»',
-      };
-      const stereo = STEREO[shape];
-      const italic = shape === 'umlabstract';
-      return body(
-        <div
-          className={`border-2 rounded-sm ${selected ? 'ring-2 ring-blue-500 ring-offset-1' : ''}`}
-          style={{ background: data.fill, borderColor: data.stroke, minWidth: 150 }}
-        >
-          <div className="border-b-2 px-3 py-1.5 text-center" style={{ borderColor: data.stroke }}>
-            {stereo && (
-              <div className="text-[9px] leading-tight" style={{ color: data.textColor, opacity: 0.7 }}>
-                {stereo}
-              </div>
-            )}
-            <div
-              className={`font-semibold leading-tight ${italic ? 'italic' : ''}`}
-              style={{ color: data.textColor, fontSize: data.fontSize || 14 }}
-            >
-              {data.label}
-            </div>
-          </div>
-          <div className="px-3 py-1.5 space-y-1.5">
-            <div className="h-1 rounded-sm" style={{ background: data.stroke, opacity: 0.18 }} />
-            <div className="h-1 rounded-sm w-4/5" style={{ background: data.stroke, opacity: 0.18 }} />
-          </div>
-          <div className="border-t px-3 py-1.5" style={{ borderColor: data.stroke }}>
-            <div className="h-1 rounded-sm w-3/5" style={{ background: data.stroke, opacity: 0.18 }} />
-          </div>
-        </div>
-      );
-    }
-    case 'note':
-      return body(
-        <ShapeBox
-          data={data}
-          selected={selected}
-          className="border border-b-0"
-          style={{ borderColor: data.stroke, background: data.fill || '#fef9c3', minWidth: 100, minHeight: 44 }}
-        >
-          {data.label}
-        </ShapeBox>
-      );
-    default:
-      return body(
-        <ShapeBox data={data} selected={selected} className="rounded-md border-2" style={{ borderColor: data.stroke }}>
-          {data.label}
-        </ShapeBox>
-      );
-  }
 });

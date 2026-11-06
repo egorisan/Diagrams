@@ -57,7 +57,8 @@ frontend/
       exportImage.js    # buildDiagramSvg + rasterize → PNG/JPG/SVG, pad=48
   Dockerfile.prod       # vite build → nginx (для docker-деплоя)
   nginx.conf            # SPA + прокси API (для docker-деплоя)
-docker-compose.yml      # универсальный вариант; на проде не используется
+docker-compose.yml      # db (postgres) + backend + frontend; на проде не используется
+DEPLOY.md               # инструкция по развёртыванию с GitHub (Docker / вручную)
 ```
 
 ## Команды
@@ -102,11 +103,25 @@ cd backend  && .venv/bin/python -c "import ast; compile(open('app/main.py').read
 - **Хэндлы**: на каждой стороне ноды только source-хэндл + `ConnectionMode.Loose` —
   направление стрелки всегда = направлению протягивания. Не возвращайте target-хэндлы
   поверх source (была регрессия: стрелки рисовались наоборот).
-- **Маркеры связей**: `markerEnd` (arrow/arrowclosed) + кастомные `markerStart`
-  url(#mk-diamond|-fill) для агрегации/композиции; defs — `EdgeMarkerDefs` в Editor
-  и в экспортере (оба места править вместе).
+- **Маркеры связей**: `markerEnd`/`markerStart` — СТРОКИ-id без `url()` (`'mk-arrow'`,
+  `'mk-arrow-fill'`, `'mk-triangle'`, `'mk-diamond'`, `'mk-diamond-fill'`): React Flow сам
+  оборачивает строку в `url('#id')`. Определения — `markerDefsSvg()` в palette.js
+  (общие для редактора и экспорта). Старые сохранения приводятся `normalizeEdges()`.
+- **Размеры нод**: `SHAPE_SIZES`/`nodeBox()` в palette.js — единый источник для
+  CustomNode, exportImage и DiagramPreview. Ручной размер (NodeResizer) хранится в
+  `node.width/height`; в CustomNode читать его через `useStore(nodeLookup)`, НЕ из props
+  (props width/height — измеренный размер).
+- **Текст**: многострочный (InlineEditor-textarea, Ctrl+Enter — готово). У UML-фигур
+  секции `data.attributes`/`data.methods`, метрики — `umlMetrics()`.
+- **Свойства**: StylePanel получает актуальную ноду по `selectedId` (не снимок).
+- **Горячие клавиши** по `e.code` (работают в русской раскладке): Ctrl+Z/Y/Shift+Z,
+  C/V, S, «+»/«−»/0 — масштаб холста (браузерный зум подавлен).
+- **Сохранение**: кнопка «Сохранить» — только в облако; «Экспорт» — скачивание.
+  Автосохранение через 2.5 с после изменений: `PUT /diagrams/{id}?autosave=true`
+  (не пишется в ExportLog, чтобы не искажать график «Активность»).
 - **Ротация**: `data.rotation` 0–360; ручка поворота в CustomNode (drag, Shift=15°);
   учитывать в экспорте/превью (уже учтено).
+- **Пароль**: ≥ 6 символов, обязательно буквы и цифры (фронт + бэк, в т.ч. сброс админом).
 - **Миграций нет (Alembic не используется)** — `init_db()` + список `MIGRATIONS`
   в database.py с `IF NOT EXISTS`; новые поля/данные добавляйте туда идемпотентно.
 - **Модель Transaction и таблица transactions** — legacy от удалённых платежей,

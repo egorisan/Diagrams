@@ -4,11 +4,20 @@ import Logo from './Logo';
 const input =
   'w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-pink-400 focus:border-pink-400 outline-none transition text-sm';
 
-export function AuthInput({ icon, ...props }) {
+// error — текст ошибки поля: рамка #EF4444 2px + сообщение под полем
+export function AuthInput({ icon, error, children, ...props }) {
   return (
-    <div className="relative">
-      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">{icon}</span>
-      <input className={input} {...props} />
+    <div>
+      <div className="relative">
+        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">{icon}</span>
+        <input
+          className={`${input} ${error ? '!border-2 !border-[#EF4444] focus:!ring-red-200' : ''}`}
+          aria-invalid={!!error}
+          {...props}
+        />
+        {children}
+      </div>
+      {typeof error === 'string' && <p className="text-sm text-[#EF4444] mt-1">{error}</p>}
     </div>
   );
 }
@@ -22,7 +31,6 @@ export default function AuthLayout({ children, title, subtitle }) {
         <nav className="hidden md:flex items-center gap-8 text-sm text-slate-500">
           <a href="/#features" className="hover:text-slate-800">Возможности</a>
           <a href="/#examples" className="hover:text-slate-800">Примеры</a>
-          <a href="/#pricing" className="hover:text-slate-800">Тарифы</a>
           <a href="/#about" className="hover:text-slate-800">О нас</a>
         </nav>
         <div className="flex items-center gap-3 text-sm">

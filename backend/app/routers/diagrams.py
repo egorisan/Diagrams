@@ -149,7 +149,7 @@ async def rename_diagram(diagram_id: uuid.UUID, data: DiagramRename, db: AsyncSe
 
 
 @router.put("/diagrams/{diagram_id}")
-async def save_diagram(diagram_id: uuid.UUID, data: DiagramSave, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+async def save_diagram(diagram_id: uuid.UUID, data: DiagramSave, autosave: bool = False, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     diagram = await _get_owned_diagram(diagram_id, user, db)
     await _check_daily_limit(user, db)
 
@@ -158,7 +158,8 @@ async def save_diagram(diagram_id: uuid.UUID, data: DiagramSave, db: AsyncSessio
         raise HTTPException(status_code=400, detail="ELEMENT_LIMIT")
 
     diagram.content = data.content
-    if not user.is_pro:
+    # Ручные сохранения учитываются в графике «Активность пользователей»
+    if not autosave:
         db.add(ExportLog(user_id=user.id, diagram_id=diagram.id, format="save"))
     # Триггер "активности" для метрик админки
     user.last_active_at = datetime.now(timezone.utc)
@@ -171,8 +172,7 @@ async def log_export(diagram_id: uuid.UUID, db: AsyncSession = Depends(get_db), 
     """Учет экспорта и проверка дневного лимита (генерация файла — на клиенте)."""
     diagram = await _get_owned_diagram(diagram_id, user, db)
     await _check_daily_limit(user, db)
-    if not user.is_pro:
-        db.add(ExportLog(user_id=user.id, diagram_id=diagram.id, format="export"))
+    db.add(ExportLog(user_id=user.id, diagram_id=diagram.id, format="export"))
     await db.commit()
     return {"status": "ok"}
 

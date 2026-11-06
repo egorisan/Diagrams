@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 
 const FORMATS = [
-  { id: 'png', label: 'PNG', desc: 'Изображение высокого качества', icon: '🖼' },
-  { id: 'svg', label: 'SVG', desc: 'Векторный формат (масштабируемый)', icon: '✒️' },
-  { id: 'jpg', label: 'JPG', desc: 'Компактный размер файла', icon: '📷' },
+  { id: 'png', label: 'PNG', desc: 'Растровое изображение без потерь качества', icon: '🖼' },
+  { id: 'svg', label: 'SVG', desc: 'Векторный формат, минимальный размер файла', icon: '✒️' },
+  { id: 'jpg', label: 'JPG', desc: 'Универсальный формат, открывается везде', icon: '📷' },
 ];
 
 // Модалка «Сохранить диаграмму»: имя файла + выбор формата.
@@ -31,7 +31,7 @@ export default function ExportModal({ open, onClose, defaultName, onSave, busy }
           <div className="flex items-center gap-3">
             <span className="w-10 h-10 rounded-xl bg-pink-100 text-pink-500 flex items-center justify-center text-lg">💾</span>
             <div>
-              <h2 className="text-lg font-bold text-slate-800">Сохранить диаграмму</h2>
+              <h2 className="text-lg font-bold text-slate-800">Экспорт диаграммы</h2>
               <p className="text-xs text-slate-400">Выберите формат файла и укажите название</p>
             </div>
           </div>
@@ -109,7 +109,7 @@ export default function ExportModal({ open, onClose, defaultName, onSave, busy }
             disabled={busy}
             className="px-6 py-2.5 bg-pink-500 text-white rounded-xl hover:bg-pink-600 font-semibold text-sm shadow-md shadow-pink-200 disabled:opacity-50"
           >
-            {busy ? 'Сохранение…' : 'Сохранить'}
+            {busy ? 'Подготовка…' : 'Скачать'}
           </button>
         </div>
       </div>

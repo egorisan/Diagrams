@@ -1,11 +1,5 @@
 // Статичное мини-превью диаграммы из сохраненного content (узлы + связи)
-const DEFAULT_SIZES = { w: 110, h: 50 };
-const BIG = { container: { w: 220, h: 140 }, actor: { w: 50, h: 80 }, cylinder: { w: 120, h: 80 }, diamond: { w: 150, h: 90 }, umlclass: { w: 150, h: 80 }, umlinterface: { w: 150, h: 80 }, umlabstract: { w: 150, h: 80 }, umlenum: { w: 150, h: 80 } };
-
-function nodeSize(n) {
-  const s = n.data?.shape;
-  return BIG[s] || DEFAULT_SIZES;
-}
+import { nodeBox as nodeSize } from '../editor/palette';
 
 function ShapeThumb({ n }) {
   const { w, h } = nodeSize(n);
@@ -22,7 +16,7 @@ function ShapeThumb({ n }) {
       return (
         <g {...common}>
           <ellipse cx={w / 2} cy="10" rx={w / 2 - 2} ry="9" />
-          <path d={`M2,10 L2,${h - 10} A${w / 2 - 2},9 0 0,1 ${w - 2},${h - 10} L${w - 2},10`} />
+          <path d={`M2,10 L2,${h - 10} A${w / 2 - 2},9 0 0,0 ${w - 2},${h - 10} L${w - 2},10`} />
         </g>
       );
     case 'actor':

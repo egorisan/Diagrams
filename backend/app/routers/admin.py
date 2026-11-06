@@ -54,8 +54,9 @@ async def toggle_pro(user_id: uuid.UUID, db: AsyncSession = Depends(get_db), adm
 @router.post("/users/{user_id}/password")
 async def reset_password(user_id: uuid.UUID, data: AdminPasswordReset, db: AsyncSession = Depends(get_db), admin: User = Depends(get_admin)):
     """Смена пароля пользователю админом (если юзер забыл свой)."""
-    if len(data.password) < 6:
-        raise HTTPException(status_code=400, detail="Пароль должен быть не короче 6 символов")
+    pw = data.password
+    if len(pw) < 6 or not any(c.isalpha() for c in pw) or not any(c.isdigit() for c in pw):
+        raise HTTPException(status_code=400, detail="Пароль должен быть не короче 6 символов и содержать буквы и цифры")
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalars().first()
     if not user:

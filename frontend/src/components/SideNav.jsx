@@ -54,7 +54,7 @@ export default function SideNav({ children, headerSlot }) {
   return (
     <div className="h-screen flex pastel-bg">
       <aside className="w-52 bg-white/70 backdrop-blur border-r border-slate-200/60 flex flex-col shrink-0">
-        <div className="p-4"><Link to="/dashboard"><Logo size="sm" /></Link></div>
+        <div className="p-4"><Link to="/" title="На главную"><Logo size="sm" /></Link></div>
 
         <p className="px-4 pt-2 pb-1 text-[11px] font-semibold text-slate-400 uppercase">
           {inAdmin ? 'Админ-панель' : 'Меню'}
@@ -75,8 +75,9 @@ export default function SideNav({ children, headerSlot }) {
         <div className="flex-1" />
         <div className="p-4 space-y-2">
           {inAdmin && (
-            <Link to="/dashboard" className="block text-xs text-slate-400 hover:text-slate-600">← На сайт</Link>
+            <Link to="/dashboard" className="block text-xs text-slate-400 hover:text-slate-600">← К проектам</Link>
           )}
+          <Link to="/" className="block text-xs text-slate-400 hover:text-slate-600">⌂ Главная страница</Link>
           <div className="text-[11px] text-slate-300">FastDia · Версия 1.0.0</div>
         </div>
       </aside>

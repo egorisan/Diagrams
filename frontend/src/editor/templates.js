@@ -67,7 +67,7 @@ export const TEMPLATES = [
         n('sys', 260, 40, 'container', 'Интернет-магазин', { fill: '#f8fafc' }),
         n('uc1', 320, 100, 'ellipse', 'Оформить заказ'),
         n('uc2', 320, 220, 'ellipse', 'Оплатить'),
-        n('uc3', 520, 220, 'ellipse', 'Оформить заказ', { fill: '#fef9c3' }),
+        n('uc3', 520, 220, 'ellipse', 'Выбрать способ доставки', { fill: '#fef9c3' }),
       ],
       edges: [
         e('e1', 'a1', 'uc1'),
